@@ -1,0 +1,32 @@
+[
+  {
+    "code": "\ndef calculate_sum(a, b):\n    \"\"\"Calculate the sum of two numbers.\n    \n    Args:\n        a (int): First number\n        b (int): Second number\n        \n    Returns:\n        int: Sum of a and b\n    \"\"\"\n    return a + b\n",
+    "function_name": "calculate_sum",
+    "documentation": "Calculate the sum of two numbers.",
+    "language": "python"
+  },
+  {
+    "code": "\ndef greet(name):\n    \"\"\"Generate a greeting message.\n    \n    Args:\n        name (str): Name of the person to greet\n        \n    Returns:\n        str: Greeting message\n    \"\"\"\n    return f\"Hello, {name}!\"\n",
+    "function_name": "greet",
+    "documentation": "Generate a greeting message.",
+    "language": "python"
+  },
+  {
+    "code": "\ndef is_palindrome(text):\n    \"\"\"Check if a string is a palindrome.\n    \n    Args:\n        text (str): String to check\n        \n    Returns:\n        bool: True if text is a palindrome, False otherwise\n    \"\"\"\n    return text == text[::-1]\n",
+    "function_name": "is_palindrome",
+    "documentation": "Check if a string is a palindrome.",
+    "language": "python"
+  },
+  {
+    "code": "\ndef count_words(text):\n    \"\"\"Count the number of words in a text.\n    \n    Args:\n        text (str): Text to count words in\n        \n    Returns:\n        int: Number of words\n    \"\"\"\n    return len(text.split())\n",
+    "function_name": "count_words",
+    "documentation": "Count the number of words in a text.",
+    "language": "python"
+  },
+  {
+    "code": "\ndef reverse_string(text):\n    \"\"\"Reverse a string.\n    \n    Args:\n        text (str): String to reverse\n        \n    Returns:\n        str: Reversed string\n    \"\"\"\n    return text[::-1]\n",
+    "function_name": "reverse_string",
+    "documentation": "Reverse a string.",
+    "language": "python"
+  }
+]
