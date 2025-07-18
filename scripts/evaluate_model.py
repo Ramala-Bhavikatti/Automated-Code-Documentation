@@ -7,6 +7,7 @@ from rouge import Rouge
 import numpy as np
 from tqdm import tqdm
 import os
+from prompts.COTFewShot import COT_FEWSHOT_TEMPLATE
 
 def load_test_dataset(file_path):
     """Load test dataset from JSON file"""
@@ -43,7 +44,8 @@ def evaluate_model(model_path, test_dataset_path):
     
     for item in tqdm(test_dataset):
         # Prepare input
-        input_text = f"Document the following Python code:\n{item['input_text']}"
+        # input_text = f"Document the following Python code:\n{item['input_text']}"
+        input_text = COT_FEWSHOT_TEMPLATE.format(code=item['input_text'].strip())
         inputs = tokenizer(input_text, return_tensors="pt", max_length=512, truncation=True)
         inputs = {k: v.to(device) for k, v in inputs.items()}
         

@@ -1,0 +1,20 @@
+# Ignore Python cache
+__pycache__/
+*.py[cod]
+
+# Ignore environment and local settings
+.env
+.vscode/
+.idea/
+.DS_Store
+
+# Ignore virtual environments
+venv/
+env/
+*.egg-info/
+
+# Ignore Jupyter/IPython notebooks
+*.ipynb_checkpoints
+
+# OS files
+Thumbs.db

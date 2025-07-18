@@ -1,69 +1,57 @@
-from flask import Blueprint, request, jsonify
-from flask_socketio import emit, join_room
-from app.services.code_service import CodeService
-from app.services.documentation_service import DocumentationService
-from app.utils.auth import token_required, create_access_token
+from flask import request, jsonify, render_template
+from werkzeug.utils import secure_filename
+import os
 
-api = Blueprint('api', __name__)
-code_service = CodeService()
-doc_service = DocumentationService()
+from app.services.agent_controller import AgenticWorkflow
+from app.utils.parsers import extract_text_from_pdf, extract_text_from_image  # <-- Corrected import
 
-@api.route('/api/auth/token', methods=['POST'])
-def get_token():
-    """Get a JWT token for authentication"""
-    data = request.get_json()
-    if not data or 'username' not in data:
-        return jsonify({'error': 'Username is required'}), 400
-    
-    token = create_access_token({'username': data['username']})
-    return jsonify({'token': token})
+UPLOAD_FOLDER = "uploads"
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'py'}
 
-@api.route('/api/code/document', methods=['POST'])
-@token_required
-def document_code(current_user):
-    """Generate documentation for code"""
-    data = request.get_json()
-    code = data.get('code')
-    if not code:
-        return jsonify({'error': 'No code provided'}), 400
-    
-    try:
-        result = doc_service.generate_documentation(code)
-        return jsonify({'documentation': result['documentation']})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
-@api.route('/api/code/analyze', methods=['POST'])
-@token_required
-def analyze_code(current_user):
-    """Analyze code structure and complexity"""
-    data = request.get_json()
-    code = data.get('code')
-    if not code:
-        return jsonify({'error': 'No code provided'}), 400
-    
-    try:
-        analysis = code_service.analyze_code(code)
-        return jsonify(analysis)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+agent = AgenticWorkflow()
 
-# WebSocket events
-def register_socket_events(socketio):
-    @socketio.on('join_room')
-    def on_join(data):
-        room = data['room']
-        join_room(room)
-        emit('status', {'msg': f'User joined room {room}'}, room=room)
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-    @socketio.on('code_update')
-    def on_code_update(data):
-        room = data['room']
-        code = data['code']
-        emit('code_update', {'code': code}, room=room, include_self=False)
+def register_routes(app):
 
-    @socketio.on('documentation_update')
-    def on_documentation_update(data):
-        room = data['room']
-        documentation = data['documentation']
-        emit('documentation_update', {'documentation': documentation}, room=room, include_self=False) 
+    @app.route('/')
+    def index():
+        return render_template("index.html")
+
+
+    # Agentic Workflow
+    @app.route('/agentic-workflow', methods=['POST'])
+    def run_agentic_workflow():
+        print("Received POST to /agentic-workflow")
+        code = request.form.get("code", "")
+        print(f"🧠 Received code: {code[:100]}")
+        file = request.files.get("file")
+        file_path = None
+
+        
+        if file and file.filename and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(file_path)
+
+            ext = filename.rsplit(".", 1)[1].lower()
+            if ext == "pdf":
+                extracted_text = extract_text_from_pdf(file_path)
+                code = code or extracted_text
+            elif ext in {"png", "jpg", "jpeg"}:
+                extracted_text = extract_text_from_image(file_path)
+                code = code or extracted_text
+            elif ext == "py":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    code = code or f.read()
+
+        try:
+            result = agent.run(code=code, file_path=file_path)
+            return jsonify(result)
+        except Exception as e:
+            print("Agentic workflow error:", e)
+            return jsonify({"error": str(e)}), 400

@@ -1,36 +1,31 @@
 import ast
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import numpy as np
 import faiss
+import spacy
 from transformers import AutoTokenizer, AutoModel
 import torch
-import spacy
 from app.services.code_service import CodeService
-
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from app.prompts.CoTFewShot import COT_FEWSHOT_TEMPLATE
 class DocumentationService:
     def __init__(self):
         self.code_service = CodeService()
         self.nlp = spacy.load("en_core_web_sm")
         self.tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base")
         self.model = AutoModel.from_pretrained("microsoft/codebert-base")
-        
-        # Initialize FAISS index
+        self.embeddings_dim = 768
         self.index = None
         self.documentation_store = {}
-        self.embeddings_dim = 768  # CodeBERT embedding dimension
-    
+        self.doc_model = AutoModelForSeq2SeqLM.from_pretrained("app/models/fourth_fine_tuned_model")
+        self.doc_tokenizer = AutoTokenizer.from_pretrained("app/models/fourth_fine_tuned_model")
+
     def generate_documentation(self, code: str) -> Dict[str, Any]:
-        """Generate documentation for the given code"""
-        # Analyze code first
         analysis = self.code_service.analyze_code(code)
-        
-        # Generate inline documentation
-        inline_doc = self._generate_inline_documentation(code, analysis)
-        
-        # Generate semantic documentation using RAG
+        inline_doc = self._generate_inline_documentation(code)
         semantic_doc = self._generate_semantic_documentation(code, analysis)
-        
-        # Combine both documentations
+        prompt_doc = self._generate_prompt_based_documentation(code)
+
         documentation = f"""# Code Documentation
 
 ## Inline Documentation
@@ -38,158 +33,139 @@ class DocumentationService:
 
 ## Semantic Analysis
 {semantic_doc}
+
+## Prompt-Based Documentation
+{prompt_doc}
 """
-        
-        # Store documentation for future retrieval
         self._store_documentation(code, documentation)
-        
+
         return {
             'documentation': documentation,
             'analysis': analysis
         }
-    
-    def _generate_inline_documentation(self, code: str, analysis: Dict[str, Any]) -> str:
-        """Generate inline documentation using code analysis"""
+
+    def _generate_inline_documentation(self, code: str) -> str:
         try:
             tree = ast.parse(code)
             lines = code.split('\n')
             documented_lines = []
-            
-            # Add file-level docstring
-            if ast.get_docstring(tree):
-                documented_lines.append(f'"""\n{ast.get_docstring(tree)}\n"""\n')
-            
-            # Process each line with its AST node
+
             for i, line in enumerate(lines):
                 node = self._find_node_at_line(tree, i + 1)
-                
+
                 if isinstance(node, ast.ClassDef):
-                    # Add class docstring
-                    if ast.get_docstring(node):
-                        documented_lines.append(f'# Class: {node.name}')
-                        documented_lines.append(f'# {ast.get_docstring(node)}')
-                    else:
-                        documented_lines.append(f'# Class: {node.name} - No docstring available')
+                    documented_lines.append(f'# Class: {node.name}')
                     documented_lines.append(line)
-                
+
                 elif isinstance(node, ast.FunctionDef):
-                    # Add function docstring
-                    if ast.get_docstring(node):
-                        documented_lines.append(f'# Function: {node.name}')
-                        documented_lines.append(f'# {ast.get_docstring(node)}')
-                    else:
-                        documented_lines.append(f'# Function: {node.name} - No docstring available')
+                    documented_lines.append(f'# Function: {node.name}')
                     documented_lines.append(line)
-                
-                elif isinstance(node, (ast.If, ast.While, ast.For, ast.AsyncFor)):
-                    # Add control structure comments
+
+                elif isinstance(node, (ast.If, ast.While, ast.For)):
                     documented_lines.append(f'# {node.__class__.__name__} block')
                     documented_lines.append(line)
-                
+
                 elif isinstance(node, ast.Assign):
-                    # Add variable assignment comments
-                    targets = [target.id for target in node.targets if isinstance(target, ast.Name)]
+                    targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
                     if targets:
                         documented_lines.append(f'# Assigning to: {", ".join(targets)}')
                     documented_lines.append(line)
-                
                 else:
                     documented_lines.append(line)
-            
+
             return '\n'.join(documented_lines)
-            
+
         except Exception as e:
             return f"Error generating inline documentation: {str(e)}"
-    
+
     def _generate_semantic_documentation(self, code: str, analysis: Dict[str, Any]) -> str:
-        """Generate semantic documentation using RAG"""
         try:
-            # Get code embeddings
             code_embedding = self._get_code_embeddings(code)
-            
-            # Find similar code snippets
             similar_docs = self._find_similar_documentation(code_embedding)
-            
-            # Generate semantic analysis
+
             semantic_parts = []
-            
-            # Add code complexity analysis
             semantic_parts.append("### Code Complexity Analysis")
             semantic_parts.append(f"- Cyclomatic Complexity: {analysis['complexity']}")
             semantic_parts.append(f"- Number of Functions: {analysis['functions']}")
             semantic_parts.append(f"- Number of Classes: {analysis['classes']}")
-            
-            # Add POS analysis
+
             doc = self.nlp(code)
-            semantic_parts.append("\n### Part of Speech Analysis")
             pos_counts = {}
             for token in doc:
                 pos_counts[token.pos_] = pos_counts.get(token.pos_, 0) + 1
+
+            semantic_parts.append("\n### Part of Speech Analysis")
             for pos, count in pos_counts.items():
                 semantic_parts.append(f"- {pos}: {count}")
-            
-            # Add similar code references
+
             if similar_docs:
                 semantic_parts.append("\n### Similar Code References")
-                for doc in similar_docs[:3]:  # Show top 3 similar docs
+                for doc in similar_docs[:3]:
                     semantic_parts.append(f"- Similarity Score: {doc['similarity']:.2f}")
                     semantic_parts.append(f"  ```python\n{doc['code'][:200]}...\n  ```")
-            
+
             return '\n'.join(semantic_parts)
-            
+
         except Exception as e:
             return f"Error generating semantic documentation: {str(e)}"
-    
-    def _get_code_embeddings(self, code: str) -> np.ndarray:
-        """Get code embeddings using CodeBERT"""
+
+    def _generate_prompt_based_documentation(self, code: str, prompt_template: Optional[str] = None) -> str:
+        if prompt_template is None:
+            prompt_template = COT_FEWSHOT_TEMPLATE
+        prompt = prompt_template.format(code=code)
+        
+        # Tokenize the prompt
+        inputs = self.doc_tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        
+        # Generate the documentation using the fine-tuned model
+        outputs = self.doc_model.generate(inputs["input_ids"])
+        docstring = self.doc_tokenizer.decode(outputs[0], skip_special_tokens=True)
+        
+        return docstring
+
+    def _get_code_embeddings(self, code: Optional[str]) -> np.ndarray:
+        if code is None:
+            code = ""
         inputs = self.tokenizer(code, return_tensors="pt", padding=True, truncation=True, max_length=512)
         with torch.no_grad():
             outputs = self.model(**inputs)
         return outputs.last_hidden_state.mean(dim=1).numpy()
-    
+
     def _store_documentation(self, code: str, documentation: str):
-        """Store documentation in FAISS index"""
-        # Get code embeddings
         embeddings = self._get_code_embeddings(code)
-        
-        # Initialize FAISS index if not exists
         if self.index is None:
             self.index = faiss.IndexFlatL2(self.embeddings_dim)
-        
-        # Add to index
-        self.index.add(embeddings.astype(np.float32))
-        
-        # Store documentation
+        # Ensure embeddings is not None and is the correct shape
+        if embeddings is not None:
+            self.index.add(embeddings.astype(np.float32))  # type: ignore
         doc_id = len(self.documentation_store)
         self.documentation_store[doc_id] = {
             'code': code,
             'documentation': documentation,
             'embeddings': embeddings
         }
-    
+
     def _find_similar_documentation(self, query_embeddings: np.ndarray, k: int = 3) -> List[Dict[str, Any]]:
-        """Find similar documentation using FAISS"""
         if self.index is None or not self.documentation_store:
             return []
-        
-        # Search in FAISS index
-        D, I = self.index.search(query_embeddings.astype(np.float32), k)
-        
-        # Return similar documentation with similarity scores
+
+        # Ensure query_embeddings is not None and has correct shape
+        if query_embeddings is None:
+            return []
+        D, I = self.index.search(query_embeddings.astype(np.float32), k)  # type: ignore
         results = []
-        for i, (distance, idx) in enumerate(zip(D[0], I[0])):
+        for distance, idx in zip(D[0], I[0]):
             if idx in self.documentation_store:
-                similarity = 1 / (1 + distance)  # Convert distance to similarity score
+                similarity = 1 / (1 + distance)
                 results.append({
                     'code': self.documentation_store[idx]['code'],
                     'documentation': self.documentation_store[idx]['documentation'],
                     'similarity': similarity
                 })
         return results
-    
-    def _find_node_at_line(self, tree: ast.AST, line_number: int) -> ast.AST:
-        """Find the AST node that starts at the given line number"""
+
+    def _find_node_at_line(self, tree: ast.AST, line_number: int) -> Optional[ast.AST]:
         for node in ast.walk(tree):
-            if hasattr(node, 'lineno') and node.lineno == line_number:
+            if hasattr(node, 'lineno') and getattr(node, 'lineno', None) == line_number:
                 return node
-        return None 
+        return None

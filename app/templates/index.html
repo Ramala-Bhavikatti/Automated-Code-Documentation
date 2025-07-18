@@ -1,235 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Documentation</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Documentation System</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-python.min.js"></script>
 </head>
-<body class="bg-gray-900 text-white">
-    <div class="container mx-auto px-4 py-8">
-        <header class="mb-8">
-            <h1 class="text-4xl font-bold text-center mb-4">AI Code Documentation</h1>
-            <p class="text-center text-gray-400">Real-time collaborative code documentation powered by AI</p>
-        </header>
 
-        <!-- Login Form -->
-        <div id="loginForm" class="max-w-md mx-auto mb-8 bg-gray-800 rounded-lg p-6">
-            <h2 class="text-2xl font-semibold mb-4">Login</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-300">Username</label>
-                    <input type="text" id="username" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <button id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">Login</button>
-            </div>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col">
+  <header class="py-8 bg-gray-800 shadow">
+    <h1 class="text-3xl md:text-4xl font-bold text-center text-green-400">
+       Agentic Code Analysis & Documentation Generation
+    </h1>
+  </header>
+
+  <main class="flex-grow container mx-auto px-4 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+      <!-- Code Editor -->
+      <div>
+        <h2 class="text-xl font-semibold mb-3 text-green-300">Paste Your Code or Upload a File</h2>
+        <textarea
+          id="codeEditor"
+          class="w-full h-72 p-4 bg-gray-800 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+          placeholder="Enter your Python code here..."
+        ></textarea>
+  
+        <div class="mt-5">
+          <label class="block mb-2 text-sm text-green-300">Upload Image or PDF</label>
+          <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.py" class="text-white">
+        </div>
+  
+        <div class="mt-5 text-right">
+          <button
+            id="runWorkflowBtn"
+            class="bg-green-600 hover:bg-green-700 text-white font-medium px-5 py-2 rounded transition duration-200"
+          >
+            Run Agentic Workflow
+          </button>
+        </div>
+      </div>
+
+      <!-- Analysis and Documentation Output -->
+      <div>
+        <h2 class="text-xl font-semibold mb-3 text-green-300">Analysis</h2>
+        <div class="bg-gray-800 p-4 rounded border border-gray-700 shadow text-sm space-y-1">
+          <p><span class="font-semibold text-green-400">Functions:</span> <span id="functionCount">0</span></p>
+          <p><span class="font-semibold text-green-400">Classes:</span> <span id="classCount">0</span></p>
+          <p><span class="font-semibold text-green-400">Lines of Code:</span> <span id="lineCount">0</span></p>
+          <p><span class="font-semibold text-green-400">Complexity Score:</span> <span id="complexityScore">0</span></p>
+          <p><span class="font-semibold text-green-400">Token Count:</span> <span id="tokenCount">0</span></p>
         </div>
 
-        <!-- Main Content (Hidden until logged in) -->
-        <div id="mainContent" class="hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Code Editor -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-2xl font-semibold mb-4">Code Editor</h2>
-                    <textarea id="codeEditor" class="w-full h-96 bg-gray-900 text-white p-4 rounded-lg font-mono" placeholder="Enter your Python code here..."></textarea>
-                    <div class="mt-4 flex justify-end space-x-4">
-                        <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">Analyze Code</button>
-                        <button id="documentBtn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded">Generate Documentation</button>
-                    </div>
-                </div>
-
-                <!-- Documentation Output -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h2 class="text-2xl font-semibold mb-4">Documentation</h2>
-                    <div id="documentationOutput" class="prose prose-invert max-w-none">
-                        <div class="bg-gray-900 p-4 rounded-lg">
-                            <p class="text-gray-400">Documentation will appear here...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Analysis Results -->
-            <div class="mt-8 bg-gray-800 rounded-lg p-4">
-                <h2 class="text-2xl font-semibold mb-4">Code Analysis</h2>
-                <div id="analysisOutput" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-gray-900 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold mb-2">Functions</h3>
-                        <p id="functionCount" class="text-3xl font-bold text-blue-400">-</p>
-                    </div>
-                    <div class="bg-gray-900 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold mb-2">Classes</h3>
-                        <p id="classCount" class="text-3xl font-bold text-green-400">-</p>
-                    </div>
-                    <div class="bg-gray-900 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold mb-2">Complexity</h3>
-                        <p id="complexityScore" class="text-3xl font-bold text-yellow-400">-</p>
-                    </div>
-                </div>
-            </div>
+        <h2 class="text-xl font-semibold mt-8 mb-3 text-green-300">Generated Documentation</h2>
+        <div
+          id="documentationOutput"
+          class="bg-gray-800 text-sm p-4 rounded border border-gray-700 shadow overflow-x-auto"
+        >
+          <pre class="language-python"><code class="language-python">No documentation yet.</code></pre>
         </div>
+      </div>
     </div>
+  </main>
 
-    <script>
-        // Initialize Socket.IO
-        const socket = io();
-        let currentRoom = null;
+  <script>
+    const runWorkflowBtn = document.getElementById('runWorkflowBtn');
 
-        // DOM Elements
-        const loginForm = document.getElementById('loginForm');
-        const mainContent = document.getElementById('mainContent');
-        const usernameInput = document.getElementById('username');
-        const loginBtn = document.getElementById('loginBtn');
-        const codeEditor = document.getElementById('codeEditor');
-        const documentationOutput = document.getElementById('documentationOutput');
-        const analysisOutput = document.getElementById('analysisOutput');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const documentBtn = document.getElementById('documentBtn');
+  runWorkflowBtn.addEventListener('click', async () => {
+    const code = document.getElementById('codeEditor').value;
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
 
-        // Check if user is already logged in
-        const token = localStorage.getItem('token');
-        if (token) {
-            showMainContent();
-        }
+    const formData = new FormData();
+    if (code) formData.append('code', code);
+    if (file) formData.append('file', file);
 
-        // Login Handler
-        loginBtn.addEventListener('click', async () => {
-            const username = usernameInput.value;
-            if (!username) return;
+    try {
+      const response = await fetch('/agentic-workflow', {
+        method: 'POST',
+        body: formData
+      });
 
-            try {
-                const response = await fetch('/api/auth/token', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username })
-                });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
 
-                const data = await response.json();
-                if (data.token) {
-                    localStorage.setItem('token', data.token);
-                    showMainContent();
-                }
-            } catch (error) {
-                console.error('Error logging in:', error);
-            }
-        });
+      updateAnalysis(data.analysis || {});
+      updateDocumentation(data.documentation || "No documentation generated.");
+    } catch (err) {
+      console.error('Agentic workflow failed:', err);
+      alert('Error running workflow');
+    }
+  });
 
-        function showMainContent() {
-            loginForm.classList.add('hidden');
-            mainContent.classList.remove('hidden');
-        }
+  function updateAnalysis(analysis) {
+    document.getElementById('functionCount').textContent = analysis.functions || '0';
+    document.getElementById('classCount').textContent = analysis.classes || '0';
+    document.getElementById('lineCount').textContent = analysis.lines || '0';
+    document.getElementById('complexityScore').textContent = analysis.complexity || '0';
+    document.getElementById('tokenCount').textContent = analysis.tokens?.length || '0';
+  }
 
-        // Event Listeners
-        analyzeBtn.addEventListener('click', async () => {
-            const code = codeEditor.value;
-            if (!code) return;
-
-            try {
-                const response = await fetch('/api/code/analyze', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({ code })
-                });
-
-                const data = await response.json();
-                updateAnalysis(data);
-            } catch (error) {
-                console.error('Error analyzing code:', error);
-            }
-        });
-
-        documentBtn.addEventListener('click', async () => {
-            const code = codeEditor.value;
-            if (!code) return;
-
-            try {
-                const response = await fetch('/api/code/document', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({ code })
-                });
-
-                const data = await response.json();
-                updateDocumentation(data.documentation);
-            } catch (error) {
-                console.error('Error generating documentation:', error);
-            }
-        });
-
-        // Socket.IO Events
-        socket.on('connect', () => {
-            console.log('Connected to server');
-            if (currentRoom) {
-                socket.emit('join_room', { room: currentRoom });
-            }
-        });
-
-        socket.on('code_update', (data) => {
-            codeEditor.value = data.code;
-        });
-
-        socket.on('documentation_update', (data) => {
-            updateDocumentation(data.documentation);
-        });
-
-        // Helper Functions
-        function updateAnalysis(data) {
-            document.getElementById('functionCount').textContent = data.functions;
-            document.getElementById('classCount').textContent = data.classes;
-            document.getElementById('complexityScore').textContent = data.complexity;
-        }
-
-        function updateDocumentation(doc) {
-            if (!doc) {
-                documentationOutput.innerHTML = `
-                    <div class="bg-gray-900 p-4 rounded-lg">
-                        <p class="text-gray-400">No documentation available</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Escape HTML special characters
-            const escapedDoc = doc
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-
-            documentationOutput.innerHTML = `
-                <div class="bg-gray-900 p-4 rounded-lg">
-                    <pre class="text-sm"><code class="language-python">${escapedDoc}</code></pre>
-                </div>
-            `;
-            Prism.highlightAll();
-        }
-
-        // Real-time updates
-        let debounceTimer;
-        codeEditor.addEventListener('input', () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                if (currentRoom) {
-                    socket.emit('code_update', {
-                        room: currentRoom,
-                        code: codeEditor.value
-                    });
-                }
-            }, 500);
-        });
-    </script>
+  function updateDocumentation(doc) {
+    const escaped = doc
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    document.getElementById('documentationOutput').innerHTML = `<pre class="language-python"><code>${escaped}</code></pre>`;
+    Prism.highlightAll();
+  }
+  </script>
 </body>
-</html> 
+</html>

@@ -1,12 +1,10 @@
-from app import app, socketio
-from flask import render_template
+# app.py
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+from app import create_app
 
-if __name__ == '__main__':
-    host = os.getenv('WEBSOCKET_HOST', '0.0.0.0')
-    port = int(os.getenv('WEBSOCKET_PORT', 5000))
-    socketio.run(app, host=host, port=port, debug=app.config['DEBUG']) 
+app = create_app()
+
+if __name__ == "__main__":
+    app.run(debug=True)
