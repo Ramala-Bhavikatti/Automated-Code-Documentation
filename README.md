@@ -33,7 +33,7 @@ An AI-powered platform for generating, managing, and code documentation in real 
 
 1. **Clone the repository:**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/Ramala-Bhavikatti/Automated-Code-Documentation.git
    cd GenAI
    ```
 2. **Install dependencies:**
@@ -86,19 +86,5 @@ An AI-powered platform for generating, managing, and code documentation in real 
   - Use scripts in `scripts/` to train models or build code search indices.
 
 ---
----
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👤 Contact
-
-Maintainer: Ramala Bhavikatti  
-Email: ramala.taskeen@gmail.com 
-GitHub: 
-
----
  
