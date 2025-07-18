@@ -12,7 +12,6 @@ __pycache__/
 logs/
 results/
 uploads/
-app/models/fine_tuned_model.zip
 app/models/fourth_fine_tuned_model
 
 
