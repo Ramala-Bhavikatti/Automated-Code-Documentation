@@ -8,6 +8,14 @@ __pycache__/
 .idea/
 .DS_Store
 
+# Ignore model weights and logs
+logs/
+results/
+uploads/
+app/models/fine_tuned_model.zip
+app/models/fourth_fine_tuned_model
+
+
 # Ignore virtual environments
 venv/
 env/
